@@ -1,11 +1,6 @@
 package net.java.dict4j.server;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-import java.net.Socket;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -15,25 +10,10 @@ import java.util.List;
 import java.util.Set;
 
 import net.java.dict4j.data.Configuration;
+import net.java.dict4j.socket.SocketFacade;
+import net.java.dict4j.socket.SocketFacadeImpl;
 
 public class ServerFacadeImpl implements ServerFacade {
-
-    /**
-     * The socket used to connect to the DICT server.
-     */
-    private Socket socket = null;
-
-    /**
-     * A output stream piped to the socket in order to send command to the
-     * server.
-     */
-    private PrintWriter output = null;
-
-    /**
-     * A input stream piped to the socket in order to receive messages from the
-     * server.
-     */
-    private BufferedReader input = null;
 
     /**
      * Current session ID
@@ -54,6 +34,27 @@ public class ServerFacadeImpl implements ServerFacade {
      * Server connection configuration
      */
     private Configuration configuration = new Configuration("dict.org");
+    
+    private SocketFacade socketFacade;
+    
+    public ServerFacadeImpl() {
+        this.socketFacade = new SocketFacadeImpl();
+    }
+    
+    public void setSocketFacade(SocketFacade socketFacade) {
+        if (connected) {
+            // If connected, close old connection before switching facade
+            try {
+                close();
+            }
+            catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
+        
+        this.socketFacade = socketFacade;
+    }
 
     @Override
     public void configure(Configuration configuration) {
@@ -65,12 +66,10 @@ public class ServerFacadeImpl implements ServerFacade {
         String fromServer;
 
         if (!connected) {
-            this.socket = new Socket(this.configuration.getHost(), this.configuration.getPort());
-            socket.setSoTimeout(this.configuration.getTimeout());
-            this.output = new PrintWriter(new OutputStreamWriter(this.socket.getOutputStream(), "UTF-8"), true);
-            this.input = new BufferedReader(new InputStreamReader(this.socket.getInputStream(), "UTF-8"));
+            
+            socketFacade.connect(this.configuration.getHost(), this.configuration.getPort(), this.configuration.getTimeout());
 
-            fromServer = this.input.readLine(); // Server banner
+            fromServer = socketFacade.readLine(); // Server banner
 
             System.out.println("connect > " + fromServer);
 
@@ -151,9 +150,9 @@ public class ServerFacadeImpl implements ServerFacade {
             connect();
 
             // Send query
-            this.output.println(query);
+            socketFacade.writeLine(query);
 
-            result = this.input.readLine();
+            result = socketFacade.readLine();
 
             if (result == null) {
                 if (attempts <= this.configuration.getReconnectionAttempts()) {
@@ -179,7 +178,7 @@ public class ServerFacadeImpl implements ServerFacade {
                 quit = true;
             }
 
-            while (quit == false && (result = this.input.readLine()) != null) {
+            while (quit == false && (result = socketFacade.readLine()) != null) {
                 System.out.println("query > " + result);
                 if (result.startsWith("250")) {
                     quit = true;
@@ -204,21 +203,22 @@ public class ServerFacadeImpl implements ServerFacade {
 
         if (connected) {
 
-            this.output.println("QUIT");
-
-            // Clean the socket buffer
-            while (quit == false && (fromServer = this.input.readLine()) != null) {
-
-                System.out.println("close > " + fromServer);
-
-                if (fromServer.startsWith("221")) { // Quit response
-                    quit = true;
+            try {
+                socketFacade.writeLine("QUIT");
+    
+                // Clean the socket buffer
+                while (quit == false && (fromServer = socketFacade.readLine()) != null) {
+    
+                    System.out.println("close > " + fromServer);
+    
+                    if (fromServer.startsWith("221")) { // Quit response
+                        quit = true;
+                    }
                 }
             }
-
-            this.output.close();
-            this.input.close();
-            this.socket.close();
+            finally {
+                socketFacade.close();
+            }
 
             this.connected = false;
         }
