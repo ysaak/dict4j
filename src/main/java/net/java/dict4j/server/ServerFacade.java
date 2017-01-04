@@ -4,9 +4,11 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 
+import net.java.dict4j.data.Configuration;
+
 public interface ServerFacade extends Closeable {
     
-    void initialize(String host, int port);
+    void configure(Configuration configuration);
     
     /**
      * Establish a connection to the DICT server

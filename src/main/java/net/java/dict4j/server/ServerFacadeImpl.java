@@ -14,20 +14,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import net.java.dict4j.data.Configuration;
+
 public class ServerFacadeImpl implements ServerFacade {
-
-    private int reconnectionAttempts = 1;
-
-    /**
-     * The host name of the server: i.e. "dict.org"
-     */
-    private String host;
-
-    /**
-     * The port used by the server. The default one for the DICT protocol is
-     * 2628.
-     */
-    private int port;
 
     /**
      * The socket used to connect to the DICT server.
@@ -47,17 +36,6 @@ public class ServerFacadeImpl implements ServerFacade {
     private BufferedReader input = null;
 
     /**
-     * The timeout
-     */
-    private int timeout = 5000;
-
-    private String clientName = "Ysaak's dict4j";
-
-    private String login = null;
-
-    private String password = null;
-
-    /**
      * Current session ID
      */
     private String authMsgId = "";
@@ -71,11 +49,15 @@ public class ServerFacadeImpl implements ServerFacade {
      * A boolean telling if we are currently connected to the DICT server.
      */
     private boolean connected = false;
+    
+    /**
+     * Server connection configuration
+     */
+    private Configuration configuration = new Configuration("dict.org");
 
     @Override
-    public void initialize(String host, int port) {
-        this.host = host;
-        this.port = port;
+    public void configure(Configuration configuration) {
+        this.configuration = configuration;
     }
 
     @Override
@@ -83,8 +65,8 @@ public class ServerFacadeImpl implements ServerFacade {
         String fromServer;
 
         if (!connected) {
-            this.socket = new Socket(this.host, this.port);
-            socket.setSoTimeout(timeout);
+            this.socket = new Socket(this.configuration.getHost(), this.configuration.getPort());
+            socket.setSoTimeout(this.configuration.getTimeout());
             this.output = new PrintWriter(new OutputStreamWriter(this.socket.getOutputStream(), "UTF-8"), true);
             this.input = new BufferedReader(new InputStreamReader(this.socket.getInputStream(), "UTF-8"));
 
@@ -118,7 +100,7 @@ public class ServerFacadeImpl implements ServerFacade {
     }
 
     private void authenticate() throws ServerException, IOException {
-        if (login != null) {
+        if (this.configuration.getLogin() != null) {
 
             if (!this.capacities.contains("auth")) {
                 throw new ServerException("502", "Command not implemented");
@@ -126,7 +108,7 @@ public class ServerFacadeImpl implements ServerFacade {
 
             final String query;
             try {
-                query = "AUTH " + login + " " + encodePassword(this.authMsgId + password);
+                query = "AUTH " + this.configuration.getLogin() + " " + encodePassword(this.authMsgId + this.configuration.getPassword());
             }
             catch (NoSuchAlgorithmException e) {
                 throw new ServerException("998", "Unable to encode password", e);
@@ -141,9 +123,9 @@ public class ServerFacadeImpl implements ServerFacade {
      * statistical purposes Automatically send during the connection
      */
     private void sendClientCommand() {
-        if (this.clientName != null && this.clientName.length() > 0) {
+        if (this.configuration.getClientName() != null && this.configuration.getClientName().length() > 0) {
             try {
-                this.query("CLIENT " + clientName, null);
+                this.query("CLIENT " + this.configuration.getClientName(), null);
             }
             catch (ServerException | IOException e) {
                 // TODO Auto-generated catch block
@@ -174,7 +156,7 @@ public class ServerFacadeImpl implements ServerFacade {
             result = this.input.readLine();
 
             if (result == null) {
-                if (attempts <= reconnectionAttempts) {
+                if (attempts <= this.configuration.getReconnectionAttempts()) {
                     // The connection may be close, let's reconnect
                     this.connected = false;
                 }

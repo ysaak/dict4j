@@ -10,7 +10,7 @@ public class SocketTest {
 
     public static void main(String[] args) throws Exception {
 
-        DictClient client = new DictClient();
+        DictClient client = new DictClient("test.dict.org", 2628);
 
         System.out.println("------------------------");
         

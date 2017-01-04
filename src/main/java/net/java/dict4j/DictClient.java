@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import net.java.dict4j.data.Configuration;
 import net.java.dict4j.data.Definition;
 import net.java.dict4j.data.Dictionary;
 import net.java.dict4j.data.Strategy;
@@ -31,11 +32,37 @@ import net.java.dict4j.server.ServerFacadeImpl;
 
 public class DictClient implements Closeable {
 
+    private Configuration configuration;
+    
     private ServerFacade serverFacade;
 
-    public DictClient() {
+    public DictClient(String host) {
+        this(new Configuration(host));
+    }
+
+    public DictClient(String host, int port) {
+        this(new Configuration(host, port));
+    }
+
+    public DictClient(Configuration configuration) {
+        this.configuration = configuration;
         this.serverFacade = new ServerFacadeImpl();
-        serverFacade.initialize("test.dict.org", 2628);
+        this.serverFacade.configure(configuration);
+    }
+    
+    public void setServerFacade(ServerFacade serverFacade) {
+        if (this.serverFacade != null) {
+            try {
+                this.serverFacade.close();
+            }
+            catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
+        
+        this.serverFacade = serverFacade;
+        this.serverFacade.configure(configuration);
     }
     
     /**
