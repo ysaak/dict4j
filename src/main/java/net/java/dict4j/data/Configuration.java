@@ -93,4 +93,11 @@ public class Configuration {
     public int getPort() {
         return port;
     }
+
+    @Override
+    public String toString() {
+        return "Configuration [host=" + host + ", port=" + port + ", timeout=" + timeout + ", clientName=" + clientName
+                + ", login=" + login + ", password=" + password + ", reconnectionAttempts=" + reconnectionAttempts
+                + "]";
+    }
 }

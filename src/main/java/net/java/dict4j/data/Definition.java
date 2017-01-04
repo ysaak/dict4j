@@ -48,16 +48,6 @@ public class Definition
 
     @Override
     public String toString() {
-        
-        // Cut definition if too long
-        final String tsDefinition;
-        if (definition.length() > 20) {
-            tsDefinition = definition.substring(0, 17).replace("\n", " ") + " ...";
-        }
-        else {
-            tsDefinition = definition;
-        }
-        
-        return "Definition[dictionary=" + dictionary + ", word=" + word + ", definition=" + tsDefinition + "]";
+        return "Definition[dictionary=" + dictionary + ", word=" + word + ", definition=" + definition + "]";
     }
 }
