@@ -6,4 +6,4 @@ dict4j
 [![Coverage](https://sonarqube.com/api/badges/measure?key=net.java:dict4j&metric=coverage)](https://sonarqube.com/dashboard/index?id=net.java%3Adict4j)
 [![Lines of code](https://sonarqube.com/api/badges/measure?key=net.java:dict4j&metric=ncloc)](https://sonarqube.com/dashboard/index?id=net.java%3Adict4j)
 
-java library allowing to connect to a dictionnary server using the DICT format
+java library allowing to connect to a dictionary server using the DICT format
