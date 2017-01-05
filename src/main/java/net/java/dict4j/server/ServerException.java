@@ -15,7 +15,7 @@ public class ServerException extends Exception {
     /**
      * The DICT error code returned by the server
      */
-    private int code;
+    private final int code;
 
     public ServerException(String error, String message) {
         super(message);

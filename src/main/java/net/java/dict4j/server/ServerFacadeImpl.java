@@ -9,11 +9,15 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import net.java.dict4j.data.Configuration;
 import net.java.dict4j.socket.SocketFacade;
 import net.java.dict4j.socket.SocketFacadeImpl;
 
 public class ServerFacadeImpl implements ServerFacade {
+    private final Logger logger = LoggerFactory.getLogger(ServerFacadeImpl.class);
 
     /**
      * Current session ID
@@ -48,8 +52,7 @@ public class ServerFacadeImpl implements ServerFacade {
                 close();
             }
             catch (IOException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+                logger.warn("Error while closing connection of the previous socket facade", e);
             }
         }
         
@@ -118,7 +121,7 @@ public class ServerFacadeImpl implements ServerFacade {
     }
 
     /**
-     * Provide information to the server about the clientname, for logging and
+     * Provide information to the server about the client name, for logging and
      * statistical purposes Automatically send during the connection
      */
     private void sendClientCommand() {
@@ -127,12 +130,12 @@ public class ServerFacadeImpl implements ServerFacade {
                 this.query("CLIENT " + this.configuration.getClientName(), null);
             }
             catch (ServerException | IOException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+                logger.error("Error while sending CLIENT command", e);
             }
         }
     }
 
+    @Override
     public String getAuthMsgId() {
         return authMsgId;
     }
@@ -142,7 +145,7 @@ public class ServerFacadeImpl implements ServerFacade {
         final List<String> lines = new ArrayList<>();
 
         int attempts = 0;
-        String result = null;
+        String result;
 
         do {
             attempts++;
@@ -178,12 +181,12 @@ public class ServerFacadeImpl implements ServerFacade {
                 quit = true;
             }
 
-            while (quit == false && (result = socketFacade.readLine()) != null) {
+            while (!quit && (result = socketFacade.readLine()) != null) {
                 System.out.println("query > " + result);
                 if (result.startsWith("250")) {
                     quit = true;
                 }
-                else if (!result.equals(".")) {
+                else if (!".".equals(result)) {
                     lines.add(result);
                 }
             }
@@ -201,27 +204,28 @@ public class ServerFacadeImpl implements ServerFacade {
         String fromServer;
         boolean quit = false;
 
-        if (connected) {
+        if (!connected) {
+            return;
+        }
 
-            try {
-                socketFacade.writeLine("QUIT");
-    
-                // Clean the socket buffer
-                while (quit == false && (fromServer = socketFacade.readLine()) != null) {
-    
-                    System.out.println("close > " + fromServer);
-    
-                    if (fromServer.startsWith("221")) { // Quit response
-                        quit = true;
-                    }
+        try {
+            socketFacade.writeLine("QUIT");
+
+            // Clean the socket buffer
+            while (!quit && (fromServer = socketFacade.readLine()) != null) {
+
+                System.out.println("close > " + fromServer);
+
+                if (fromServer.startsWith("221")) { // Quit response
+                    quit = true;
                 }
             }
-            finally {
-                socketFacade.close();
-            }
-
-            this.connected = false;
         }
+        finally {
+            socketFacade.close();
+        }
+
+        this.connected = false;
     }
 
     /**
@@ -237,9 +241,9 @@ public class ServerFacadeImpl implements ServerFacade {
         MessageDigest md = MessageDigest.getInstance("MD5");
         md.update(password.getBytes());
 
-        byte byteData[] = md.digest();
+        byte[] byteData = md.digest();
 
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         for (int i = 0; i < byteData.length; i++)
             sb.append(Integer.toString((byteData[i] & 0xff) + 0x100, 16).substring(1));
 

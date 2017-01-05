@@ -8,6 +8,9 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import net.java.dict4j.data.Configuration;
 import net.java.dict4j.data.Definition;
 import net.java.dict4j.data.Dictionary;
@@ -31,6 +34,7 @@ import net.java.dict4j.server.ServerFacade;
 import net.java.dict4j.server.ServerFacadeImpl;
 
 public class DictClient implements Closeable {
+    private final Logger logger = LoggerFactory.getLogger(DictClient.class);
 
     private Configuration configuration;
     
@@ -56,8 +60,7 @@ public class DictClient implements Closeable {
                 this.serverFacade.close();
             }
             catch (IOException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+                logger.warn("Error while closing the connection of the previous server facade", e);
             }
         }
         
@@ -88,8 +91,8 @@ public class DictClient implements Closeable {
             throw new UnexpectedServerException(e);
         }
 
-        String code = null;
-        String name = null;
+        String code;
+        String name;
 
         for (String serverLine : response) {
             final String[] data = serverLine.split(" ", 2);
@@ -124,8 +127,8 @@ public class DictClient implements Closeable {
             throw new UnexpectedServerException(e);
         }
 
-        String code = null;
-        String name = null;
+        String code;
+        String name;
 
         for (String serverLine : response) {
             final String[] data = serverLine.split(" ", 2);
@@ -185,7 +188,7 @@ public class DictClient implements Closeable {
         final StringBuilder builder = new StringBuilder();
         String definedWord = null;
         Dictionary dictionary = null;
-        Matcher matcher = null;
+        Matcher matcher;
 
         for (String line : response) {
 
@@ -233,7 +236,7 @@ public class DictClient implements Closeable {
         final List<String> matchedWords = new ArrayList<>();
 
         final Pattern pattern = Pattern.compile("^(.*) \"(.*)\"$");
-        Matcher matcher = null;
+        Matcher matcher;
 
         for (String line : response) {
             if ((matcher = pattern.matcher(line)).matches()) {
@@ -330,7 +333,7 @@ public class DictClient implements Closeable {
                 throw instance;
             }
             catch (InstantiationException | IllegalAccessException e1) {
-                /**/
+                logger.error("Error while instancing exception " + clazz.getName(), e1);
             }
         }
     }
