@@ -2,6 +2,7 @@ package net.java.dict4j;
 
 import java.util.List;
 
+import net.java.dict4j.data.Configuration;
 import net.java.dict4j.data.Definition;
 import net.java.dict4j.data.Dictionary;
 import net.java.dict4j.data.Strategy;
@@ -9,8 +10,11 @@ import net.java.dict4j.data.Strategy;
 public class SocketTest {
 
     public static void main(String[] args) throws Exception {
+        
+        Configuration config = new Configuration("test.dict.org", 2628);
+        config.setClientName("dict4j");
 
-        DictClient client = new DictClient("test.dict.org", 2628);
+        DictClient client = new DictClient(config);
 
         System.out.println("------------------------");
         
