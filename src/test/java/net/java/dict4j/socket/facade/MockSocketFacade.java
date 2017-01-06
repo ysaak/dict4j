@@ -1,7 +1,6 @@
-package net.java.dict4j.mock;
+package net.java.dict4j.socket.facade;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -10,20 +9,23 @@ import java.util.Map;
 import org.junit.Assert;
 
 import net.java.dict4j.socket.SocketFacade;
+import net.java.dict4j.socket.command.MockCommand;
 
 public class MockSocketFacade implements SocketFacade {
-    
-    private static final Map<String, List<String>> SUCCESS_COMMAND_RESPONSES = new HashMap<>();
-    private static final Map<String, List<String>> FAIL_COMMAND_RESPONSES = new HashMap<>();
-    static {
-        initSuccessResponses();
-        initFailResponses();
-    }
-    
     private boolean socketFailure = false;
     private boolean dataFailure = false;
     
     private Iterator<String> commandData = null;
+    
+    private final Map<String, MockCommand> commands;
+    
+    public MockSocketFacade(List<MockCommand> commands) {
+        this.commands = new HashMap<>();
+        
+        for (MockCommand cmd : commands) {
+            this.commands.put(cmd.getCommandCode(), cmd);
+        }
+    }
 
     public void setSocketFailure(boolean socketFailure) {
         this.socketFailure = socketFailure;
@@ -74,42 +76,26 @@ public class MockSocketFacade implements SocketFacade {
     private void setCommandData(String commandLine) {
         Assert.assertNotNull("line sent to the server is null", commandLine);
         
-        String[] parts = commandLine.split(" ");
+        final String[] parts = commandLine.split(" ");
         
+        final String command; 
+        if ("SHOW".equals(parts[0])) {
+            command = parts[0] + " " + parts[1];
+        }
+        else {
+            command = parts[0];
+        }
         
-        final List<String> data = dataFailure ? FAIL_COMMAND_RESPONSES.get(parts[0]) : SUCCESS_COMMAND_RESPONSES.get(parts[0]) ;
-        
-        if (data == null) {
+        MockCommand mockCommand = commands.get(command);
+        if (mockCommand == null) {
             Assert.fail("Unknown command '" + parts[0] + "'");
         }
         
-        commandData = data.iterator();
-    }
-    
-    
-    /* ----- Commands responses ----- */
-
-
-    private static void initSuccessResponses() {
-        
-        // CONNECT command
-        SUCCESS_COMMAND_RESPONSES.put("CONNECT", Arrays.asList("220 pan.alephnull.com dictd 1.12.1/rf on Linux 4.4.0-1-amd64 <auth.mime> <30801377.8901.1483649623@pan.alephnull.com>"));
-
-        // CLIENT command
-        SUCCESS_COMMAND_RESPONSES.put("CLIENT", Arrays.asList("250 ok"));
-        
-        // STATUS command
-        SUCCESS_COMMAND_RESPONSES.put("STATUS", Arrays.asList("210 status [d/m/c = 2/12/58; 2.000r 0.000u 0.000s]"));
-        
-        // CLOSE command
-        SUCCESS_COMMAND_RESPONSES.put("CLOSE", Arrays.asList("221 bye [d/m/c = 0/0/0; 3.000r 0.000u 0.000s]"));
-        
-        // TODO Auto-generated method stub
-        
-    }
-
-    private static void initFailResponses() {
-        // TODO Auto-generated method stub
-        
+        if (dataFailure) {
+            commandData = mockCommand.getErrorSocketResponse().iterator();
+        }
+        else {
+            commandData = mockCommand.getSocketResponse().iterator();
+        }
     }
 }
