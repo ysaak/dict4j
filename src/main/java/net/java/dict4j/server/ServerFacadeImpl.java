@@ -8,16 +8,21 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.java.dict4j.data.Configuration;
+import net.java.dict4j.data.ServerCapability;
 import net.java.dict4j.socket.SocketFacade;
 import net.java.dict4j.socket.SocketFacadeImpl;
 
 public class ServerFacadeImpl implements ServerFacade {
     private final Logger logger = LoggerFactory.getLogger(ServerFacadeImpl.class);
+    
+    private static final Pattern CONNECT_LINE_PATTERN = Pattern.compile("^220 (.*) <(.*)> <(.*)>$");
 
     /**
      * Current session ID
@@ -27,7 +32,12 @@ public class ServerFacadeImpl implements ServerFacade {
     /**
      * List of the special capacities of the server (auth, mime, ...)
      */
-    private final Set<String> capacities = new HashSet<>();
+    private final Set<ServerCapability> capabilities = new HashSet<>();
+    
+    /**
+     * Server banner
+     */
+    private String banner = "";
 
     /**
      * A boolean telling if we are currently connected to the DICT server.
@@ -37,11 +47,12 @@ public class ServerFacadeImpl implements ServerFacade {
     /**
      * Server connection configuration
      */
-    private Configuration configuration = new Configuration("dict.org");
+    private final Configuration configuration;
     
     private SocketFacade socketFacade;
     
-    public ServerFacadeImpl() {
+    public ServerFacadeImpl(Configuration configuration) {
+        this.configuration = configuration;
         this.socketFacade = new SocketFacadeImpl();
     }
     
@@ -59,32 +70,38 @@ public class ServerFacadeImpl implements ServerFacade {
         this.socketFacade = socketFacade;
     }
 
-    @Override
-    public void configure(Configuration configuration) {
-        this.configuration = configuration;
-    }
-
-    @Override
+    /**
+     * Establish a connection to the DICT server
+     * @throws ServerException
+     * @return TRUE if the connection is open - throw DictException otherwise
+     */
     public void connect() throws ServerException, IOException {
-        String fromServer;
-
         if (!connected) {
             
             socketFacade.connect(this.configuration.getHost(), this.configuration.getPort(), this.configuration.getTimeout());
 
-            fromServer = socketFacade.readLine(); // Server banner
+            final String fromServer = socketFacade.readLine(); // Server banner
 
-            System.out.println("connect > " + fromServer);
-
-            if (fromServer.startsWith("220")) { // 220 = connect ok
-
-                // Line format : code informations <(CAPACITIES)> (<MSG-ID>)
-                String[] temp = fromServer.split(" ");
-                this.authMsgId = temp[temp.length - 1];
+            final Matcher m = CONNECT_LINE_PATTERN.matcher(fromServer);
+            
+            if (m.matches()) { // 220 = connect ok
                 
-                this.capacities.clear();
-                this.capacities.addAll(Arrays.asList(temp[temp.length - 2].split(".")));
+                // Extract informations from the line
+                this.banner = m.group(1);
+                
+                this.authMsgId = m.group(3);
 
+                this.capabilities.clear();
+                
+                for (String capability : Arrays.asList(m.group(2).split("\\."))) {
+                    ServerCapability sc = ServerCapability.getFromCode(capability);
+                    if (sc != null) {
+                        this.capabilities.add(sc);
+                    }
+                    else {
+                        logger.warn("Server advertised an unknown capability : " + capability);
+                    }
+                }
                 
                 // Authenticate (if necessary)
                 this.authenticate();
@@ -104,7 +121,7 @@ public class ServerFacadeImpl implements ServerFacade {
     private void authenticate() throws ServerException, IOException {
         if (this.configuration.getLogin() != null) {
 
-            if (!this.capacities.contains("auth")) {
+            if (!this.capabilities.contains(ServerCapability.BASIC_AUTHENTICATION)) {
                 throw new ServerException("502", "Command not implemented");
             }
 
@@ -116,7 +133,7 @@ public class ServerFacadeImpl implements ServerFacade {
                 throw new ServerException("998", "Unable to encode password", e);
             }
             
-            this.query(query, "230");
+            this.execute(query, "230");
         }
     }
 
@@ -127,7 +144,7 @@ public class ServerFacadeImpl implements ServerFacade {
     private void sendClientCommand() {
         if (this.configuration.getClientName() != null && this.configuration.getClientName().length() > 0) {
             try {
-                this.query("CLIENT " + this.configuration.getClientName(), null);
+                this.execute("CLIENT " + this.configuration.getClientName(), null);
             }
             catch (ServerException | IOException e) {
                 logger.error("Error while sending CLIENT command", e);
@@ -136,12 +153,27 @@ public class ServerFacadeImpl implements ServerFacade {
     }
 
     @Override
-    public String getAuthMsgId() {
-        return authMsgId;
+    public String getMessageId() {
+        return this.authMsgId;
+    }
+    
+    @Override
+    public Set<ServerCapability> getCapabilities() {
+        return this.capabilities;
+    }
+    
+    @Override
+    public String getServerBanner() {
+        return this.banner;
+    }
+    
+    @Override
+    public boolean isConnectedToServer() {
+        return this.connected;
     }
 
     @Override
-    public List<String> query(String query, String okResponse) throws ServerException, IOException {
+    public List<String> execute(String query, String okResponse) throws ServerException, IOException {
         final List<String> lines = new ArrayList<>();
 
         int attempts = 0;
@@ -170,8 +202,6 @@ public class ServerFacadeImpl implements ServerFacade {
         }
         while (result == null);
 
-        System.out.println("query > " + result);
-
         if (okResponse != null && result.startsWith(okResponse)) {
             // OK - getting responses from the server
             boolean quit = false;
@@ -182,7 +212,6 @@ public class ServerFacadeImpl implements ServerFacade {
             }
 
             while (!quit && (result = socketFacade.readLine()) != null) {
-                System.out.println("query > " + result);
                 if (result.startsWith("250")) {
                     quit = true;
                 }
@@ -213,8 +242,6 @@ public class ServerFacadeImpl implements ServerFacade {
 
             // Clean the socket buffer
             while (!quit && (fromServer = socketFacade.readLine()) != null) {
-
-                System.out.println("close > " + fromServer);
 
                 if (fromServer.startsWith("221")) { // Quit response
                     quit = true;
