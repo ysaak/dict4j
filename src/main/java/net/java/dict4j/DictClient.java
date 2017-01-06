@@ -50,8 +50,11 @@ public class DictClient implements Closeable {
 
     public DictClient(Configuration configuration) {
         this.configuration = configuration;
-        this.serverFacade = new ServerFacadeImpl();
-        this.serverFacade.configure(configuration);
+        this.serverFacade = new ServerFacadeImpl(configuration);
+    }
+    
+    public Configuration getConfiguration() {
+        return configuration;
     }
     
     public void setServerFacade(ServerFacade serverFacade) {
@@ -65,7 +68,10 @@ public class DictClient implements Closeable {
         }
         
         this.serverFacade = serverFacade;
-        this.serverFacade.configure(configuration);
+    }
+    
+    public ServerFacade getServerFacade() {
+        return serverFacade;
     }
     
     /**
@@ -83,7 +89,7 @@ public class DictClient implements Closeable {
         final List<String> response;
         
         try {
-            response = serverFacade.query("SHOW DB", "110");
+            response = serverFacade.execute("SHOW DB", "110");
         }
         catch (ServerException e) {
             propagateGeneralException(e);
@@ -119,7 +125,7 @@ public class DictClient implements Closeable {
 
         final List<String> response;
         try {
-            response = serverFacade.query("SHOW STRAT", "111");
+            response = serverFacade.execute("SHOW STRAT", "111");
         }
         catch (ServerException e) {
             propagateGeneralException(e);
@@ -172,7 +178,7 @@ public class DictClient implements Closeable {
     public List<Definition> define(String dictionaryCode, String word) throws InvalidDictionaryException, NoMatchException, IOException {
         final List<String> response;
         try {
-            response = serverFacade.query("DEFINE " + dictionaryCode + " \"" + word + "\"", "150");
+            response = serverFacade.execute("DEFINE " + dictionaryCode + " \"" + word + "\"", "150");
         }
         catch (ServerException e) {
             propagateGeneralException(e);
@@ -223,7 +229,7 @@ public class DictClient implements Closeable {
     public List<String> match(String dictionaryCode, String strategyCode, String word) throws InvalidDictionaryException, InvalidStrategyException, NoMatchException, IOException {
         final List<String> response;
         try {
-            response = serverFacade.query("MATCH " + dictionaryCode + " " + strategyCode + " \"" + word + "\"", "152");
+            response = serverFacade.execute("MATCH " + dictionaryCode + " " + strategyCode + " \"" + word + "\"", "152");
         }
         catch (ServerException e) {
             propagateGeneralException(e);
@@ -250,7 +256,7 @@ public class DictClient implements Closeable {
     public String getServerInformation() throws IOException {
         final List<String> response;
         try {
-            response = serverFacade.query("SHOW SERVER", "114");
+            response = serverFacade.execute("SHOW SERVER", "114");
         }
         catch (ServerException e) {
             propagateGeneralException(e);
@@ -269,7 +275,7 @@ public class DictClient implements Closeable {
     public String getServerStatus() throws IOException {
         final List<String> response;
         try {
-            response = serverFacade.query("STATUS", "210");
+            response = serverFacade.execute("STATUS", "210");
         }
         catch (ServerException e) {
             propagateGeneralException(e);
@@ -294,7 +300,7 @@ public class DictClient implements Closeable {
     public String getDictionaryInformation(String dictionaryCode) throws InvalidDictionaryException, IOException {
         final List<String> response;
         try {
-            response = serverFacade.query("SHOW INFO " + dictionaryCode, "112");
+            response = serverFacade.execute("SHOW INFO " + dictionaryCode, "112");
         }
         catch (ServerException e) {
             propagateGeneralException(e);
